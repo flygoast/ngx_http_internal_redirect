@@ -2,7 +2,8 @@
 
 ## Introduction
 
-This module complete internal redirect according to conditions. This is what the `rewrite` can not do.
+This module is used to complete internal redirect according to conditions.
+This is what the `rewrite` can not do.
 
 ## Synopsis
 
@@ -17,7 +18,7 @@ This module complete internal redirect according to conditions. This is what the
 
 ## Directives
 
-* **syntax**: ***internal_redirect_if*** (condition) <target>
+* **syntax**: ***internal_redirect_if*** (condition) target
 * **default**: --
 * **context**: http, server, location
     
@@ -43,6 +44,7 @@ phase. If tuned to `on`, would suppress this.
 This module is compatible with following nginx releases:
 - 1.2.6
 - 1.2.7
+
 Others are not tested.
 
 ## Author
