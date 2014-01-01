@@ -561,7 +561,7 @@ ngx_http_internal_redirect_handler(ngx_http_request_t *r)
 
     ngx_http_finalize_request(r, NGX_DONE);
 
-    return NGX_OK;
+    return NGX_DONE;
 }
 
 
