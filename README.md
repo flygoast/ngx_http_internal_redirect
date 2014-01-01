@@ -9,7 +9,7 @@ This is what the `rewrite` can not do.
 
     location / {
         ...
-        internal_redirect_if ($method == 'FOO') @foo;
+        internal_redirect_if ($request_method == 'FOO') @foo;
     }
 
     location @foo {
