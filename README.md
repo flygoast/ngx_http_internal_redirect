@@ -34,7 +34,7 @@ phase. If tuned to `on`, would suppress this.
 
 ## Installation
 
-    cd nginx-*version*
+    cd nginx-**version**
     ./configure --add-module=/path/to/this/directory
     make
     make install
