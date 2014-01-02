@@ -28,7 +28,7 @@ The `ngx_http_internal_redirect_module` is used to make an internal redirect to 
 ## Directives
 
 * **syntax**: *internal_redirect_if (condition) uri*
-              *internal_redirect_if (condition) =code*
+* **syntax**: *internal_redirect_if (condition) =code*
 * **default**: --
 * **context**: http, server, location
 
