@@ -626,7 +626,9 @@ ngx_http_internal_redirect_merge_loc_conf(ngx_conf_t *cf, void *parent,
     ngx_http_internal_redirect_loc_conf_t  *prev = parent;
     ngx_http_internal_redirect_loc_conf_t  *conf = child;
 
-    ngx_conf_merge_ptr_value(conf->redirects, prev->redirects, NULL);
+    if (conf->redirects == NULL && prev->redirects) {
+        conf->redirects = prev->redirects;
+    }
 
     return NGX_CONF_OK;
 }
