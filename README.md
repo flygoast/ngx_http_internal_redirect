@@ -1,37 +1,37 @@
-# ngx_http_internal_redirect_module
+# NGINX HTTP Internal Redirect Module
 
 ## Introduction
 
-This module is used to make an internal redirect to the uri specified
-according to the condition specified.
+The `ngx_http_internal_redirect_module` is used to make an internal redirect to the uri specified according to the condition specified.
 
 ## Synopsis
 
 ```nginx
+
     location / {
-        ...
         internal_redirect_if ($request_method == 'FOO') @foo;
         internal_redirect_if ($request_method == 'BAR') /foo;
+        root html;
     }
 
     location @foo {
-        ...
+        return 200;
     }
 
     location /bar {
-        ...
+        return 200;
     }
 ```
 
 ## Directives
 
-* **syntax**: ***internal_redirect_if** (condition) uri*
+* **syntax**: *internal_redirect_if (condition) uri*
 * **default**: --
 * **context**: http, server, location
 
 The specified `condition` is evaluated. If true, an internal redirect would be made to the `uri` specified in this directive. The syntax of condition is the same as it in the `if` directive in `rewrite` module.
 
-* **syntax**: ***internal_redirect_if_no_postponed**  on|off*
+* **syntax**: *internal_redirect_if_no_postponed  on|off*
 * **default**: off
 * **context**: http
 
