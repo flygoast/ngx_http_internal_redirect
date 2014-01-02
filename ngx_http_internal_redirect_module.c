@@ -40,7 +40,10 @@ typedef struct {
 
 typedef struct {
     ngx_array_t  *codes;
-    ngx_str_t     target;
+    ngx_array_t  *lengths;
+    ngx_array_t  *values;
+    ngx_str_t     name;
+    unsigned      code:10;
 } ngx_http_internal_redirect_entry_t;
 
 
@@ -124,6 +127,9 @@ static char *
 ngx_http_internal_redirect_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_str_t                               *value;
+    ngx_int_t                                code;
+    ngx_uint_t                               n;
+    ngx_http_script_compile_t                sc;
     ngx_http_internal_redirect_entry_t      *redirect;
     ngx_http_internal_redirect_main_conf_t  *imcf;
     ngx_http_internal_redirect_loc_conf_t   *ilcf = conf;
@@ -143,12 +149,36 @@ ngx_http_internal_redirect_if(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_memzero(redirect, sizeof(ngx_http_internal_redirect_entry_t));
 
     value = cf->args->elts;
-    redirect->target = value[cf->args->nelts - 1];
+    redirect->name = value[cf->args->nelts - 1];
 
-    if (redirect->target.data[0] != '@' && redirect->target.data[0] != '/') {
-        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "invalid redirect target \"%V\"", &redirect->target);
-        return NGX_CONF_ERROR;
+    n = ngx_http_script_variables_count(&redirect->name);
+
+    if (n) {
+        ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
+
+        sc.cf = cf;
+        sc.source = &redirect->name;
+        sc.lengths = &redirect->lengths;
+        sc.values = &redirect->values;
+        sc.variables = n;
+        sc.complete_lengths = 1;
+        sc.complete_values = 1;
+
+        if (ngx_http_script_compile(&sc) != NGX_OK) {
+            return NGX_CONF_ERROR;
+        }
+    }
+
+    if (redirect->name.data[0] == '=') {
+        code = ngx_atoi(redirect->name.data + 1, redirect->name.len - 1);
+        if (code == NGX_ERROR || code > 999) {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "invalid code \"%V\"",
+                               &redirect->name);
+            return NGX_CONF_ERROR;
+        }
+
+        redirect->code = code;
     }
 
     cf->args->nelts--;
@@ -482,7 +512,9 @@ ngx_http_internal_redirect_init(ngx_conf_t *cf)
 static ngx_int_t
 ngx_http_internal_redirect_handler(ngx_http_request_t *r)
 {
+    u_char                                  *p;
     ngx_uint_t                               i;
+    ngx_str_t                                uri, args;
     ngx_http_script_code_pt                  code;
     ngx_http_script_engine_t                 e;
     ngx_http_variable_value_t                stack[10];
@@ -551,12 +583,45 @@ ngx_http_internal_redirect_handler(ngx_http_request_t *r)
         return NGX_DECLINED;
     }
 
-    if (redirects[i].target.data[0] == '@') {
+    if (redirects[i].code) {
+        return redirects[i].code;
+    }
 
-        (void) ngx_http_named_location(r, &redirects[i].target);
+    if (redirects[i].lengths) {
+
+        if (ngx_http_script_run(r, &uri, redirects[i].lengths->elts, 0, 
+                                redirects->values->elts)
+            == NULL)
+        {
+            return NGX_HTTP_INTERNAL_SERVER_ERROR;
+        }
 
     } else {
-        (void) ngx_http_internal_redirect(r, &redirects[i].target, &r->args);
+        uri = redirects[i].name;
+    }
+
+    if (uri.data[0] == '@') {
+
+        (void) ngx_http_named_location(r, &uri);
+
+    } else {
+
+        if (uri.data[0] != '/') {
+            p = ngx_pcalloc(r->pool, uri.len + 1);
+            if (p == NULL) {
+                return NGX_HTTP_INTERNAL_SERVER_ERROR;
+            }
+
+            uri.len++;
+            *p = '/';
+            ngx_memcpy(p + 1, uri.data, uri.len);
+            uri.data = p;
+        }
+
+        ngx_http_split_args(r, &uri, &args);
+
+        (void) ngx_http_internal_redirect(r, &uri,
+                                          (args.len == 0) ? &r->args : &args);
     }
 
     ngx_http_finalize_request(r, NGX_DONE);
