@@ -620,8 +620,7 @@ ngx_http_internal_redirect_handler(ngx_http_request_t *r)
 
         ngx_http_split_args(r, &uri, &args);
 
-        (void) ngx_http_internal_redirect(r, &uri,
-                                          (args.len == 0) ? &r->args : &args);
+        (void) ngx_http_internal_redirect(r, &uri, &args);
     }
 
     ngx_http_finalize_request(r, NGX_DONE);
