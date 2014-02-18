@@ -260,7 +260,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
         }
 
         if (cur == last) {
-            return NGX_CONF_OK;
+            goto end;
         }
 
         cur++;
@@ -284,7 +284,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
 
             *code = ngx_http_script_equal_code;
 
-            return NGX_CONF_OK;
+            goto end;
         }
 
         if (len == 2 && p[0] == '!' && p[1] == '=') {
@@ -303,7 +303,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
             }
 
             *code = ngx_http_script_not_equal_code;
-            return NGX_CONF_OK;
+            goto end;
         }
 
         if ((len == 1 && p[0] == '~')
@@ -339,7 +339,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
             }
             regex->name = value[last];
 
-            return NGX_CONF_OK;
+            goto end;
         }
 
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
@@ -375,43 +375,43 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
 
         if (p[1] == 'f') {
             fop->op = ngx_http_script_file_plain;
-            return NGX_CONF_OK;
+            goto end;
         }
 
         if (p[1] == 'd') {
             fop->op = ngx_http_script_file_dir;
-            return NGX_CONF_OK;
+            goto end;
         }
 
         if (p[1] == 'e') {
             fop->op = ngx_http_script_file_exists;
-            return NGX_CONF_OK;
+            goto end;
         }
 
         if (p[1] == 'x') {
             fop->op = ngx_http_script_file_exec;
-            return NGX_CONF_OK;
+            goto end;
         }
 
         if (p[0] == '!') {
             if (p[2] == 'f') {
                 fop->op = ngx_http_script_file_not_plain;
-                return NGX_CONF_OK;
+                goto end;
             }
 
             if (p[2] == 'd') {
                 fop->op = ngx_http_script_file_not_dir;
-                return NGX_CONF_OK;
+                goto end;
             }
 
             if (p[2] == 'e') {
                 fop->op = ngx_http_script_file_not_exists;
-                return NGX_CONF_OK;
+                goto end;
             }
 
             if (p[2] == 'x') {
                 fop->op = ngx_http_script_file_not_exec;
-                return NGX_CONF_OK;
+                goto end;
             }
         }
 
@@ -424,6 +424,17 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
                        "invalid condition \"%V\"", &value[cur]);
 
     return NGX_CONF_ERROR;
+
+end:
+
+    code = ngx_array_push_n(redirect->codes, sizeof(uintptr_t));
+    if (code == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    *code = (uintptr_t) NULL;
+
+    return NGX_CONF_OK;
 }
 
 
