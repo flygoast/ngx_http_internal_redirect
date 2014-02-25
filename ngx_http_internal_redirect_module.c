@@ -432,7 +432,7 @@ end:
         return NGX_CONF_ERROR;
     }
 
-    *code = (uintptr_t) NULL;
+    *(uintptr_t *) code = (uintptr_t) NULL;
 
     return NGX_CONF_OK;
 }
