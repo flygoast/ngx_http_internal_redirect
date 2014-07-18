@@ -9,10 +9,10 @@ The `ngx_http_internal_redirect_module` is used to make an internal redirect to 
 ```nginx
 
     location / {
-        internal_redirect_if ($request_method == 'FOO') @foo;
-        internal_redirect_if ($request_method == 'BAR') /foo;
-        internal_redirect_if ($request_method == 'BAZ') =200;
-        internal_redirect_if ($request_method == 'QUZ') "$foo$bar";
+        internal_redirect_if ($request_method = 'FOO') @foo;
+        internal_redirect_if ($request_method = 'BAR') /foo;
+        internal_redirect_if ($request_method = 'BAZ') =200;
+        internal_redirect_if ($request_method = 'QUZ') "$foo$bar";
         root html;
     }
 
