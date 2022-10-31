@@ -34,6 +34,7 @@
 
 typedef struct {
     ngx_flag_t  postponed;
+    ngx_uint_t  phase;
     unsigned    required:1;
 } ngx_http_internal_redirect_main_conf_t;
 
@@ -50,6 +51,13 @@ typedef struct {
 typedef struct {
     ngx_array_t  *redirects;  /* ngx_http_internal_redirect_entry_t */
 } ngx_http_internal_redirect_loc_conf_t;
+
+
+static ngx_conf_enum_t  ngx_http_internal_redirect_if_phase[] = {
+    { ngx_string("post_read"), NGX_HTTP_POST_READ_PHASE },
+    { ngx_string("rewrite"), NGX_HTTP_REWRITE_PHASE },
+    { ngx_null_string, 0 }
+};
 
 
 static char *ngx_http_internal_redirect_if(ngx_conf_t *cf, ngx_command_t *cmd,
@@ -83,6 +91,13 @@ static ngx_command_t  ngx_http_internal_redirect_commands[] = {
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(ngx_http_internal_redirect_main_conf_t, postponed),
       NULL },
+
+    { ngx_string("internal_redirect_if_phase"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_enum_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(ngx_http_internal_redirect_main_conf_t, phase),
+      ngx_http_internal_redirect_if_phase },
 
       ngx_null_command
 };
@@ -254,7 +269,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
             return NGX_CONF_ERROR;
         }
 
-        if (ngx_http_internal_redirect_if_condition_value(cf, redirect, 
+        if (ngx_http_internal_redirect_if_condition_value(cf, redirect,
                                                           &value[cur])
             != NGX_CONF_OK)
         {
@@ -271,7 +286,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
         p = value[cur].data;
 
         if (len == 1 && p[0] == '=') {
-            if (ngx_http_internal_redirect_if_condition_value(cf, redirect, 
+            if (ngx_http_internal_redirect_if_condition_value(cf, redirect,
                                                               &value[last])
                 != NGX_CONF_OK)
             {
@@ -291,7 +306,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
 
         if (len == 2 && p[0] == '!' && p[1] == '=') {
 
-            if (ngx_http_internal_redirect_if_condition_value(cf, redirect, 
+            if (ngx_http_internal_redirect_if_condition_value(cf, redirect,
                                                               &value[last])
                 != NGX_CONF_OK)
             {
@@ -321,7 +336,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
             }
 
             ngx_memzero(regex, sizeof(ngx_http_script_regex_code_t));
-            
+
             ngx_memzero(&rc, sizeof(ngx_regex_compile_t));
 
             rc.pattern = value[last];
@@ -345,7 +360,7 @@ ngx_http_internal_redirect_if_condition(ngx_conf_t *cf,
             goto end;
 #else
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "using regex \"%V\" requires PCRE library", 
+                               "using regex \"%V\" requires PCRE library",
                                &value[last]);
             return NGX_CONF_ERROR;
 #endif
@@ -513,15 +528,14 @@ ngx_http_internal_redirect_init(ngx_conf_t *cf)
     ngx_http_internal_redirect_main_conf_t  *imcf;
 
     cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
-    imcf = ngx_http_conf_get_module_main_conf(cf, 
+    imcf = ngx_http_conf_get_module_main_conf(cf,
                                              ngx_http_internal_redirect_module);
-
     if (imcf->required) {
-        h = ngx_array_push(&cmcf->phases[NGX_HTTP_REWRITE_PHASE].handlers);
+        h = ngx_array_push(&cmcf->phases[imcf->phase].handlers);
         if (h == NULL) {
             return NGX_ERROR;
         }
-    
+
         *h = ngx_http_internal_redirect_handler;
     }
 
@@ -546,6 +560,11 @@ ngx_http_internal_redirect_handler(ngx_http_request_t *r)
 
     imcf = ngx_http_get_module_main_conf(r, ngx_http_internal_redirect_module);
 
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "internal_redirect handler: %ui, postponed: %i",
+                   r->phase_handler,
+                   imcf->postponed);
+
     if (!imcf->postponed) {
 
         imcf->postponed = 1;
@@ -555,6 +574,12 @@ ngx_http_internal_redirect_handler(ngx_http_request_t *r)
         ph = cmcf->phase_engine.handlers;
         cur_ph = &ph[r->phase_handler];
         last_ph = &ph[cur_ph->next - 1];
+
+        ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "internal_redirect lh: %ui, cur_ph: %p, last_ph: %p",
+                       cur_ph->next - 1,
+                       cur_ph,
+                       last_ph);
 
         if (cur_ph < last_ph) {
             tmp = *cur_ph;
@@ -570,6 +595,11 @@ ngx_http_internal_redirect_handler(ngx_http_request_t *r)
     }
 
     ilcf = ngx_http_get_module_loc_conf(r, ngx_http_internal_redirect_module);
+
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                   "internal_redirect redirects: %p, n: %i",
+                   ilcf->redirects,
+                   ilcf->redirects ? ilcf->redirects->nelts : 0);
 
     if (ilcf->redirects == NULL) {
         return NGX_DECLINED;
@@ -609,7 +639,7 @@ ngx_http_internal_redirect_handler(ngx_http_request_t *r)
 
     if (redirects[i].lengths) {
 
-        if (ngx_http_script_run(r, &uri, redirects[i].lengths->elts, 0, 
+        if (ngx_http_script_run(r, &uri, redirects[i].lengths->elts, 0,
                                 redirects->values->elts)
             == NULL)
         {
@@ -654,7 +684,7 @@ ngx_http_internal_redirect_create_main_conf(ngx_conf_t *cf)
 {
     ngx_http_internal_redirect_main_conf_t  *imcf;
 
-    imcf = ngx_pcalloc(cf->pool, 
+    imcf = ngx_pcalloc(cf->pool,
                        sizeof(ngx_http_internal_redirect_main_conf_t));
     if (imcf == NULL) {
         return NULL;
@@ -666,6 +696,7 @@ ngx_http_internal_redirect_create_main_conf(ngx_conf_t *cf)
      */
 
     imcf->postponed = NGX_CONF_UNSET;
+    imcf->phase = NGX_CONF_UNSET_UINT;
 
     return imcf;
 }
@@ -678,6 +709,10 @@ ngx_http_internal_redirect_init_main_conf(ngx_conf_t *cf, void *conf)
 
     if (imcf->postponed == NGX_CONF_UNSET) {
         imcf->postponed = 0;
+    }
+
+    if (imcf->phase == NGX_CONF_UNSET_UINT) {
+        imcf->phase = NGX_HTTP_REWRITE_PHASE;
     }
 
     return NGX_CONF_OK;
@@ -698,7 +733,7 @@ ngx_http_internal_redirect_create_loc_conf(ngx_conf_t *cf)
      * set by ngx_pcalloc():
      *     conf->redirects = NULL;
      */
-    
+
     return conf;
 }
 

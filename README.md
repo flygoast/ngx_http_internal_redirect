@@ -34,11 +34,18 @@ The `ngx_http_internal_redirect_module` is used to make an internal redirect to 
 
 The specified `condition` is evaluated. If true, an internal redirect would be made to the `uri` specified in this directive. The syntax of condition is the same as it in the `if` directive in `rewrite` module. The syntax of `uri` is the same as it in the `try_files` directive.
 
-* **syntax**: *internal_redirect_if_no_postponed  on|off*
+* **syntax**: *internal_redirect_if_no_postponed  on | off*
 * **default**: off
 * **context**: http
 
-Control whether or not to disable postpone the `internal_redirect_if` directives to run at the end of the `REWRITE` request-processing phase. By default, this directive is turned off.
+Control whether or not to disable postpone the `internal_redirect_if` directives to run at the end of the request-processing phase. By default, this directive is turned off.
+
+* **syntax**: *internal_redirect_if_phase post_read | rewrite*
+* **default**: rewrite
+* **context**: http
+
+The phase to which this handler would register to. Note, if set to `post_read`, the conditions set in `location {}` would not come to force.
+
 
 ## Installation
 
@@ -51,9 +58,10 @@ Control whether or not to disable postpone the `internal_redirect_if` directives
 
 ## Status
 
-This module is compatible with following nginx releases:
+This module is tested with following nginx releases:
 - 1.2.6
 - 1.2.7
+- 1.23.1
 
 Others are not tested.
 
