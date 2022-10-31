@@ -9,6 +9,7 @@ The `ngx_http_internal_redirect_module` is used to make an internal redirect to 
 ```nginx
 
     location / {
+        internal_redirect_if ($request_method = 'FOO') skip;
         internal_redirect_if ($request_method = 'FOO') @foo;
         internal_redirect_if ($request_method = 'BAR') /foo;
         internal_redirect_if ($request_method = 'BAZ') =200;
@@ -27,12 +28,13 @@ The `ngx_http_internal_redirect_module` is used to make an internal redirect to 
 
 ## Directives
 
+* **syntax**: *internal_redirect_if (condition) skip*
 * **syntax**: *internal_redirect_if (condition) uri*
 * **syntax**: *internal_redirect_if (condition) =code*
 * **default**: --
 * **context**: http, server, location
 
-The specified `condition` is evaluated. If true, an internal redirect would be made to the `uri` specified in this directive. The syntax of condition is the same as it in the `if` directive in `rewrite` module. The syntax of `uri` is the same as it in the `try_files` directive.
+The specified `condition` is evaluated. If true, an internal redirect would be made to the `uri` specified in this directive. The syntax of condition is the same as it in the `if` directive in `rewrite` module. The syntax of `uri` is the same as it in the `try_files` directive. If the last argument is `skip`, this handler would be skipped.
 
 * **syntax**: *internal_redirect_if_no_postponed  on | off*
 * **default**: off

@@ -650,6 +650,16 @@ ngx_http_internal_redirect_handler(ngx_http_request_t *r)
         uri = redirects[i].name;
     }
 
+    // skip this handler
+    if (uri.len == 4 && uri.data[0] == 's' && uri.data[1] == 'k'
+                                    && uri.data[2] == 'i' && uri.data[3] == 'p')
+    {
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                       "internal_redirect handler skip");
+
+        return NGX_DECLINED;
+    }
+
     if (uri.data[0] == '@') {
 
         (void) ngx_http_named_location(r, &uri);
